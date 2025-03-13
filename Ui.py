@@ -110,7 +110,9 @@ class PokemonBattleUI:
         self.pikachu = pikachu
         self.greninja = greninja
         self.attack_buttons = []
-        
+        self.player_lives = 2
+        self.enemy_lives = 2
+
         self.create_ui()
 
     def create_ui(self):
@@ -147,8 +149,24 @@ class PokemonBattleUI:
 
         self.create_health_bar()  # Create health bars for both Pokémon
 
+        # Add player lives label to show the number of lives
+        self.player_lives_label = tk.Label(self.root, text=f"Player Lives: {self.player_lives}", font=("Courier New", 14), bg="gray")
+        self.player_lives_label.place(x=800, y=550)
+
+        self.enemy_lives_label = tk.Label(self.root, text=f"Enemy Lives: {self.enemy_lives}", font=("Courier New", 14), bg="gray")
+        self.enemy_lives_label.place(x=800, y=500)
+
         self.update_attack_buttons()
         self.update_pokemon_images()
+
+
+    def create_lives_display(self):
+        # Display player and enemy lives
+        self.player_lives_label = tk.Label(self.root, text=f"Player Lives: {self.player_lives}", font=("Courier New", 14), bg="gray")
+        self.player_lives_label.place(x=20, y=100)
+
+        self.enemy_lives_label = tk.Label(self.root, text=f"Enemy Lives: {self.enemy_lives}", font=("Courier New", 14), bg="gray")
+        self.enemy_lives_label.place(x=600, y=100)
 
 
     def update_attack_buttons(self):
@@ -166,6 +184,11 @@ class PokemonBattleUI:
             self.attack_buttons.append(btn)  # Store the button to remove it later
             button_y += 30
 
+    def update_lives_display(self):
+        # Update the displayed lives
+        self.player_lives_label.config(text=f"Player Lives: {self.player_lives}")
+        self.enemy_lives_label.config(text=f"Enemy Lives: {self.enemy_lives}")
+
     def attack(self, move):
         message = self.battle_logic.attack(move)
         self.message_label.config(text=message)
@@ -176,16 +199,13 @@ class PokemonBattleUI:
         if self.battle_logic.enemy_pokemon.hp == 0:
             self.message_label.config(text=f"{self.battle_logic.enemy_pokemon.name} fainted!")
             self.change_enemy()
+            self.enemy_lives -= 1  # Reduce enemy lives when they lose a Pokémon
+            self.update_lives_display()
+
             if self.check_game_over():
                 return  # Stop further game action if game is over
             return
-
-        # Trigger movement effect for player's Pokémon
-        self.animate_attack(self.player_pokemon_label, 20)  # Move a little bit
-        self.enemy_flash_effect(self.enemy_pokemon_label)
-
-        # AI Attack - Enemy Pokémon's turn
-        self.root.after(1000, self.enemy_attack)
+        self.root.after(1000, self.enemy_attack)  # Call enemy_attack with a slight delay
 
     def flash_effect(self, pokemon_label):
     
@@ -212,7 +232,6 @@ class PokemonBattleUI:
         self.message_label.config(text=enemy_message)
         self.pokemon_label.config(text=f"{self.battle_logic.player_pokemon.name} HP: {self.battle_logic.player_pokemon.hp}")
 
-
         # Trigger movement effect for enemy Pokémon
         self.animate_attack(self.enemy_pokemon_label, -20)  # Move a little bit
         self.flash_effect(self.player_pokemon_label)
@@ -224,18 +243,18 @@ class PokemonBattleUI:
             self.message_label.config(text=f"{self.battle_logic.player_pokemon.name} fainted!")
             self.switch_pokemon()
             self.update_health_bar(self.battle_logic.enemy_pokemon, self.enemy_health_bar)
+            self.player_lives -= 1  # Reduce player lives when they lose a Pokémon
+            self.update_lives_display()
+
             if self.check_game_over():
                 return  # Stop further game action if game is over
 
     def check_game_over(self):
         """Check if the game is over (both Pokémon are dead)."""
-        if self.battle_logic.player_pokemon.hp == 0 and self.battle_logic.enemy_pokemon.hp == 0:
-            self.show_game_over("WIN")  # Player wins if both Pokémon faint
-            return True
-        elif self.battle_logic.player_pokemon.hp == 0:
+        if self.player_lives == 0:
             self.show_game_over("LOSE")
             return True
-        elif self.battle_logic.enemy_pokemon.hp == 0:
+        elif self.enemy_lives == 0:
             self.show_game_over("WIN")
             return True
         return False
@@ -254,9 +273,6 @@ class PokemonBattleUI:
 
 
     def change_enemy(self):
-     # Check if the enemy Pokémon is Ultra Necrozma and prevent it from respawning
-     if self.battle_logic.enemy_pokemon.name == "Ultra Necrozma":
-         self.battle_logic.enemy_pokemon = None  # This will force the change_enemy logic to pick a new Pokémon
 
      # Randomly select an enemy Pokémon from the available pool (excluding the current one)
      available_for_enemy = [p for p in available_pokemons if p != self.battle_logic.enemy_pokemon]
@@ -332,4 +348,3 @@ class PokemonBattleUI:
         """Restart the game by closing the current window and reopening a new instance."""
         self.root.destroy()  # Close the current game window
         os.execv(sys.executable, ['python'] + sys.argv)  # Restart the script
-
