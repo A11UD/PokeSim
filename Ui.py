@@ -25,13 +25,20 @@ available_pokemons = [
 # Global dictionary to store images and prevent garbage collection issues
 image_cache = {}
 
-def resize_image(image_path, size=(180, 180)):
+import os
+
+def resize_image(image_name, size=(180, 180)):
+    # Get the current directory path of the script (Ui.py)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Define the path to the 'pics' folder in the current directory
+    image_path = os.path.join(current_dir, "pics", image_name)
+
     if not os.path.exists(image_path):
         print(f"Error: Image file not found -> {image_path}")
         return None
 
     img = Image.open(image_path).convert("RGBA")  # Ensure it's in RGBA mode
-
     img = img.resize(size, Image.Resampling.LANCZOS)  # Resize with high quality
 
     # Make white parts fully transparent
@@ -43,6 +50,7 @@ def resize_image(image_path, size=(180, 180)):
     img.putdata(new_img_data)
 
     return ImageTk.PhotoImage(img)  # Convert to Tkinter format
+
 
 class PokemonSelectionUI:
     def __init__(self, root, on_pokemon_selected):
