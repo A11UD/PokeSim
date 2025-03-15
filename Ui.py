@@ -52,21 +52,45 @@ def resize_image(image_name, size=(180, 180)):
     return ImageTk.PhotoImage(img)  # Convert to Tkinter format
 
 
+# PokemonSelectionUI class
 class PokemonSelectionUI:
     def __init__(self, root, on_pokemon_selected):
         self.root = root
         self.on_pokemon_selected = on_pokemon_selected
         self.selected_pokemons = []
+        self.enemy_pokemons = []  # Added to store enemy Pokémon
         self.create_ui()
 
     def start_battle(self):
-        print("Battle is starting with Pokémon:", self.selected_pokemons[0].name, "and", self.selected_pokemons[1].name)
-        self.on_pokemon_selected(self.selected_pokemons[0], self.selected_pokemons[1])
-        # Create the battle window after selecting Pokémon
-        battle_window = tk.Toplevel(self.root)  # This creates a new window for the battle
-        battle_ui = PokemonBattleUI(battle_window, self.on_pokemon_selected, self.selected_pokemons[0], self.selected_pokemons[1])
-        # Close the selection screen
-        self.root.destroy()  # Close the selection screen
+        print(f"Starting battle with the following Pokémon: {self.selected_pokemons[0].name}, {self.selected_pokemons[1].name}")
+        
+        # Ensure enemy Pokémon are selected
+        self.select_enemy_pokemon()
+        print(f"Enemy Pokémon selected: {self.enemy_pokemons[0].name}, {self.enemy_pokemons[1].name}")
+
+        # Define initial lives (let's assume 3 lives for each player and enemy)
+        player_lives = 3
+        enemy_lives = 3
+
+        # Create the battle window
+        battle_window = tk.Toplevel(self.root)
+        print("Battle window created.")
+
+        # Pass player_lives and enemy_lives to PokemonBattleUI
+        battle_ui = PokemonBattleUI(
+            battle_window,
+            BattleLogic(self.selected_pokemons[0], self.selected_pokemons[1], self.enemy_pokemons[0], self.enemy_pokemons[1]),
+            self.selected_pokemons[0],
+            self.selected_pokemons[1],
+            self.enemy_pokemons[0],  
+            self.enemy_pokemons[1],
+            player_lives=player_lives,  # Added player lives
+            enemy_lives=enemy_lives   # Added enemy lives
+        )
+
+        # self.root.destroy()  # Comment this out temporarily
+        print("Battle window should be open now.")
+
 
     def create_ui(self):
         self.root.title("Select Your Pokémon")
@@ -94,11 +118,13 @@ class PokemonSelectionUI:
         self.select_label.place(x=50, y=30)
 
     def select_pokemon(self, pokemon):
+        print(f"Selecting Pokémon: {pokemon.name}")
         if len(self.selected_pokemons) < 2:
             self.selected_pokemons.append(pokemon)
             self.show_selected_pokemon()
 
         if len(self.selected_pokemons) == 2:
+            self.select_enemy_pokemon()  # Select enemy Pokémon after player's choice
             self.start_battle()
 
     def show_selected_pokemon(self):
@@ -106,24 +132,48 @@ class PokemonSelectionUI:
         selected_text = f"Selected: {', '.join([p.name for p in self.selected_pokemons])}"
         self.select_label.config(text=selected_text)
 
-    # In PokemonSelectionUI class
+    def select_enemy_pokemon(self):
+        # Randomly select 2 enemy Pokémon, ensuring they are not the player's Pokémon
+        possible_choices = [p for p in available_pokemons if p not in self.selected_pokemons]
+        self.enemy_pokemons = random.sample(possible_choices, 2)
+        print(f"Enemy Pokémon: {self.enemy_pokemons[0].name} and {self.enemy_pokemons[1].name}")
+
+
 
 
 
 
 class PokemonBattleUI:
-    def __init__(self, root, battle_logic, pikachu, greninja):
+   
+    def __init__(self, root, battle_logic, player_pokemon1, player_pokemon2, enemy_pokemon1, enemy_pokemon2, player_lives, enemy_lives):
+        
+        print(f"Initializing battle UI with {player_pokemon1.name} and {player_pokemon2.name} vs {enemy_pokemon1.name} and {enemy_pokemon2.name}")
         self.root = root
         self.battle_logic = battle_logic
-        self.pikachu = pikachu
-        self.greninja = greninja
+        self.player_pokemons = [player_pokemon1, player_pokemon2]
+        self.enemy_pokemons = [enemy_pokemon1, enemy_pokemon2]
+        self.player_pokemon = self.player_pokemons[0]  # Start with the first player Pokémon
+        self.enemy_pokemon = self.enemy_pokemons[0]  # Start with the first enemy Pokémon
         self.attack_buttons = []
-        self.player_lives = 2
-        self.enemy_lives = 2
+        self.player_lives = player_lives  # Player lives passed to constructor
+        self.enemy_lives = enemy_lives  # Enemy lives passed to constructor
 
         self.create_ui()
 
+    def select_pokemon(self, pokemon):
+        print(f"Selecting Pokémon: {pokemon.name}")  # Debugging line
+        if len(self.selected_pokemons) < 2:
+            self.selected_pokemons.append(pokemon)
+            self.show_selected_pokemon()
+
+        if len(self.selected_pokemons) == 2:
+            self.select_enemy_pokemon()  # Select enemy Pokémon after player's choice
+            self.start_battle()
+            print("Start battle should be triggered")  # Debugging line
+
+
     def create_ui(self):
+        print("Creating battle UI...")
         self.root.title("Pokémon Battle")
         self.root.geometry("1000x600")
 
@@ -197,23 +247,7 @@ class PokemonBattleUI:
         self.player_lives_label.config(text=f"Player Lives: {self.player_lives}")
         self.enemy_lives_label.config(text=f"Enemy Lives: {self.enemy_lives}")
 
-    def attack(self, move):
-        message = self.battle_logic.attack(move)
-        self.message_label.config(text=message)
-        self.enemy_hp_label.config(text=f"Enemy HP: {self.battle_logic.enemy_pokemon.hp}")
-
-        self.update_health_bar(self.battle_logic.enemy_pokemon, self.enemy_health_bar)
-
-        if self.battle_logic.enemy_pokemon.hp == 0:
-            self.message_label.config(text=f"{self.battle_logic.enemy_pokemon.name} fainted!")
-            self.change_enemy()
-            self.enemy_lives -= 1  # Reduce enemy lives when they lose a Pokémon
-            self.update_lives_display()
-
-            if self.check_game_over():
-                return  # Stop further game action if game is over
-            return
-        self.root.after(1000, self.enemy_attack)  # Call enemy_attack with a slight delay
+    
 
     def flash_effect(self, pokemon_label):
     
@@ -227,6 +261,26 @@ class PokemonBattleUI:
         original_color = pokemon_label.cget("bg")
         pokemon_label.config(bg="red")  # Change to red for the flash effect
         self.root.after(100, lambda: pokemon_label.config(bg=original_color))  # Revert after 100ms
+    def attack(self, move):
+        
+        message = self.battle_logic.attack(move)
+        self.message_label.config(text=message)
+        self.enemy_hp_label.config(text=f"Enemy HP: {self.battle_logic.enemy_pokemon.hp}")
+
+        self.animate_attack(self.player_pokemon_label, 20)  # Move a little bit
+        self.enemy_flash_effect(self.enemy_pokemon_label)
+        self.update_health_bar(self.battle_logic.enemy_pokemon, self.enemy_health_bar)
+
+        if self.battle_logic.enemy_pokemon.hp == 0:
+            self.message_label.config(text=f"{self.battle_logic.enemy_pokemon.name} fainted!")
+            self.change_enemy()
+            self.enemy_lives -= 1  # Reduce enemy lives when they lose a Pokémon
+            self.update_lives_display()
+
+            if self.check_game_over():  # Check if the game is over
+                return  # Stop further game action if game is over
+            return
+        self.root.after(1000, self.enemy_attack)  # Call enemy_attack with a slight delay
 
 
     def enemy_attack(self):
@@ -236,7 +290,8 @@ class PokemonBattleUI:
 
         enemy_move = random.choice(list(enemy_moves.keys()))  # Get a random move
         damage = self.battle_logic.calculate_damage(self.battle_logic.enemy_pokemon, self.battle_logic.player_pokemon, enemy_move)
-        enemy_message = self.battle_logic.enemy_attack(enemy_move)
+        enemy_message = self.battle_logic.enemy_attack()
+
         self.message_label.config(text=enemy_message)
         self.pokemon_label.config(text=f"{self.battle_logic.player_pokemon.name} HP: {self.battle_logic.player_pokemon.hp}")
 
@@ -254,8 +309,9 @@ class PokemonBattleUI:
             self.player_lives -= 1  # Reduce player lives when they lose a Pokémon
             self.update_lives_display()
 
-            if self.check_game_over():
+            if self.check_game_over():  # Check if the game is over
                 return  # Stop further game action if game is over
+
 
     def check_game_over(self):
         """Check if the game is over (both Pokémon are dead)."""
@@ -296,12 +352,22 @@ class PokemonBattleUI:
 
 
     def switch_pokemon(self):
-        message = self.battle_logic.switch_pokemon(self.pikachu, self.greninja)
+        # Assuming 'switch_pokemon' method returns a message to be displayed
+        message = self.battle_logic.switch_pokemon(self.player_pokemon)
+
+        
+        # Update the message label with the result of the switch
         self.message_label.config(text=message)
+        
+        # Update the displayed images of the Pokémon
         self.update_pokemon_images()
+        
+        # Update the attack buttons to match the new active Pokémon
         self.update_attack_buttons()
 
+        # Schedule the enemy's attack after a short delay (1 second)
         self.root.after(1000, self.enemy_attack)
+
 
 
     def update_pokemon_images(self):
